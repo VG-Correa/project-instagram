@@ -34,6 +34,7 @@ export interface Comment {
   createdAt: Date;
   updatedAt: Date;
   likedBy: string[]; // IDs dos usuários que curtiram o comentário
+  parentId?: string; // Para hierarquia de respostas
   user?: User; // Para incluir dados do usuário que comentou
 }
 

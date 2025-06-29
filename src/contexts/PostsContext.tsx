@@ -55,6 +55,7 @@ export const PostsProvider: React.FC<PostsProviderProps> = ({ children }) => {
       createdAt: new Date(),
       updatedAt: new Date(),
       likedBy: [],
+      parentId: commentData.parentId,
     };
     setPosts(prev => prev.map(post =>
       post.id === postId

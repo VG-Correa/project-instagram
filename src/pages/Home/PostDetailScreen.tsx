@@ -8,6 +8,8 @@ import {
   FlatList,
   TextInput,
   SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/core/types';
@@ -25,6 +27,8 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
   const { user } = useAuth();
   const post = posts.find(p => p.id === postId);
   const [comment, setComment] = React.useState('');
+  const [replyTo, setReplyTo] = React.useState<string | null>(null);
+  const [inputHeight, setInputHeight] = React.useState(40);
 
   if (!post) {
     return (
@@ -44,74 +48,102 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
         userId: user.id,
         content: comment.trim(),
         likedBy: [],
+        parentId: replyTo || undefined,
       });
       setComment('');
+      setReplyTo(null);
     }
   };
 
-  const renderComment = ({ item }: any) => {
-    const commentUser = users.find(u => u.id === item.userId);
-    const isCommentLiked = user && item.likedBy.includes(user.id);
-    return (
-      <View style={styles.commentItem}>
-        <Image source={{ uri: commentUser?.avatar || 'https://via.placeholder.com/40' }} style={styles.commentAvatar} />
-        <View style={styles.commentContent}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.commentUsername}>{commentUser?.username || 'Usuário'}</Text>
-            <Text style={styles.commentDate}>{new Date(item.createdAt).toLocaleString()}</Text>
+  // Função para renderizar comentários em árvore
+  const renderCommentsTree = (parentId: string | null = null, level = 0) => {
+    return post.comments
+      .filter(c => (c.parentId ?? null) === parentId)
+      .map((item) => {
+        const commentUser = users.find(u => u.id === item.userId);
+        const isCommentLiked = user && item.likedBy.includes(user.id);
+        return (
+          <View key={item.id} style={[styles.commentItem, { marginLeft: level * 24 }]}> 
+            <Image source={{ uri: commentUser?.avatar || 'https://via.placeholder.com/40' }} style={styles.commentAvatar} />
+            <View style={styles.commentContent}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.commentUsername}>{commentUser?.username || 'Usuário'}</Text>
+                <Text style={styles.commentDate}>{new Date(item.createdAt).toLocaleString()}</Text>
+              </View>
+              <Text style={styles.commentText}>{item.content}</Text>
+              <View style={styles.commentActions}>
+                <TouchableOpacity onPress={() => setReplyTo(item.id)}>
+                  <Text style={styles.commentActionBtn}>Responder</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => user && toggleCommentLike(post.id, item.id, user.id)}>
+                  <Text style={styles.commentActionBtn}>
+                    {isCommentLiked ? '❤️' : '🤍'} {item.likedBy.length}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {/* Renderiza respostas recursivamente */}
+              {renderCommentsTree(item.id, level + 1)}
+            </View>
           </View>
-          <Text style={styles.commentText}>{item.content}</Text>
-          <View style={styles.commentActions}>
-            <TouchableOpacity>
-              <Text style={styles.commentActionBtn}>Responder</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => user && toggleCommentLike(post.id, item.id, user.id)}>
-              <Text style={styles.commentActionBtn}>
-                {isCommentLiked ? '❤️' : '🤍'} {item.likedBy.length}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    );
+        );
+      });
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-        <Text style={styles.backBtnText}>← Voltar</Text>
-      </TouchableOpacity>
-      <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
-      <View style={styles.postHeader}>
-        <Image source={{ uri: postUser?.avatar || 'https://via.placeholder.com/40' }} style={styles.avatar} />
-        <Text style={styles.username}>{postUser?.username || 'Usuário'}</Text>
-      </View>
-      <Text style={styles.caption}>{post.caption}</Text>
-      <View style={styles.actionsRow}>
-        <TouchableOpacity onPress={() => user && toggleLike(post.id, user.id)}>
-          <Text style={styles.likeBtn}>{isLiked ? '❤️' : '🤍'} {post.likedBy.length}</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+    >
+      <SafeAreaView style={styles.container}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backBtnText}>← Voltar</Text>
         </TouchableOpacity>
-        <Text style={styles.commentsCount}>💬 {post.comments.length}</Text>
-      </View>
-      <FlatList
-        data={post.comments}
-        renderItem={renderComment}
-        keyExtractor={item => item.id}
-        style={styles.commentsList}
-        ListEmptyComponent={<Text style={styles.noComments}>Nenhum comentário ainda.</Text>}
-      />
-      <View style={styles.commentInputRow}>
-        <TextInput
-          style={styles.commentInput}
-          placeholder="Adicionar um comentário..."
-          value={comment}
-          onChangeText={setComment}
-        />
-        <TouchableOpacity onPress={handleSendComment} style={styles.sendBtn}>
-          <Text style={styles.sendBtnText}>Enviar</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+        <View style={styles.postHeader}>
+          <Image source={{ uri: postUser?.avatar || 'https://via.placeholder.com/40' }} style={styles.avatar} />
+          <Text style={styles.username}>{postUser?.username || 'Usuário'}</Text>
+        </View>
+        <Text style={styles.caption}>{post.caption}</Text>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity onPress={() => user && toggleLike(post.id, user.id)}>
+            <Text style={styles.likeBtn}>{isLiked ? '❤️' : '🤍'} {post.likedBy.length}</Text>
+          </TouchableOpacity>
+          <Text style={styles.commentsCount}>💬 {post.comments.length}</Text>
+        </View>
+        <View style={styles.commentsList}>
+          {post.comments.length === 0 ? (
+            <Text style={styles.noComments}>Nenhum comentário ainda.</Text>
+          ) : (
+            renderCommentsTree()
+          )}
+        </View>
+        <View style={styles.commentInputRow}>
+          {replyTo && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', position: 'absolute', top: -22, left: 0, right: 0 }}>
+              <Text style={{ color: '#0095f6', fontSize: 13, textAlign: 'left', marginBottom: 2 }}>
+                Respondendo comentário
+              </Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)}>
+                <Text style={{ color: '#f44336', marginLeft: 10, fontSize: 13, fontWeight: 'bold' }}>(Cancelar)</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <TextInput
+            style={[styles.commentInput, { minHeight: 48, maxHeight: 120, height: Math.max(48, inputHeight) }]}
+            placeholder={replyTo ? 'Responder comentário...' : 'Adicionar um comentário...'}
+            value={comment}
+            onChangeText={setComment}
+            multiline
+            onContentSizeChange={e => setInputHeight(e.nativeEvent.contentSize.height)}
+            textAlignVertical="top"
+          />
+          <TouchableOpacity onPress={handleSendComment} style={styles.sendBtn}>
+            <Text style={styles.sendBtnText}>Enviar</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -138,10 +170,38 @@ const styles = StyleSheet.create({
   commentText: { fontSize: 14, color: '#262626', marginTop: 2 },
   commentActions: { flexDirection: 'row', marginTop: 4 },
   commentActionBtn: { color: '#0095f6', fontSize: 12, marginRight: 16 },
-  commentInputRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderTopWidth: 1, borderTopColor: '#eee' },
-  commentInput: { flex: 1, borderWidth: 1, borderColor: '#dbdbdb', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, fontSize: 14, backgroundColor: '#fafafa' },
-  sendBtn: { marginLeft: 10, backgroundColor: '#0095f6', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
-  sendBtnText: { color: '#fff', fontWeight: 'bold' },
+  commentInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fafbfc',
+    minHeight: 60,
+  },
+  commentInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#dbdbdb',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    backgroundColor: '#fff',
+    marginRight: 8,
+    minHeight: 40,
+    maxHeight: 100,
+  },
+  sendBtn: {
+    backgroundColor: '#0095f6',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
+  },
+  sendBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
 });
 
 export default PostDetailScreen;
