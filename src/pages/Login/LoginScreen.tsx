@@ -23,8 +23,8 @@ interface LoginScreenProps {
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('adm@adm.com');
+  const [password, setPassword] = useState('123456');
   const { login, loading } = useAuth();
   const { showFeedback } = useFeedback();
 

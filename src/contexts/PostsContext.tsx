@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Post, Comment, User } from '@/core/types';
+import { defaultPosts } from '@/core/datadefault';
 
 interface PostsContextType {
   posts: Post[];
@@ -9,6 +10,7 @@ interface PostsContextType {
   addComment: (postId: string, comment: Omit<Comment, 'id' | 'createdAt' | 'updatedAt'>) => void;
   toggleLike: (postId: string, userId: string) => void;
   getUserPosts: (userId: string) => Post[];
+  toggleCommentLike: (postId: string, commentId: string, userId: string) => void;
 }
 
 const PostsContext = createContext<PostsContextType | undefined>(undefined);
@@ -18,38 +20,11 @@ interface PostsProviderProps {
 }
 
 export const PostsProvider: React.FC<PostsProviderProps> = ({ children }) => {
-  const [posts, setPosts] = useState<Post[]>([
-    // Posts de exemplo
-    {
-      id: '1',
-      userId: '1',
-      imageUrl: 'https://via.placeholder.com/400x400',
-      caption: 'Primeira foto! 📸',
-      likes: 5,
-      comments: [
-        {
-          id: '1',
-          postId: '1',
-          userId: '2',
-          content: 'Muito legal!',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: '2',
-      userId: '2',
-      imageUrl: 'https://via.placeholder.com/400x400/ff6b6b',
-      caption: 'Outro dia incrível!',
-      likes: 3,
-      comments: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-  ]);
+  const [posts, setPosts] = useState<Post[]>(defaultPosts.map(post => ({
+    ...post,
+    likedBy: post.likedBy || [],
+    likes: post.likedBy ? post.likedBy.length : post.likes || 0,
+  })));
 
   const addPost = (postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'comments'>): void => {
     const newPost: Post = {
@@ -73,12 +48,13 @@ export const PostsProvider: React.FC<PostsProviderProps> = ({ children }) => {
     setPosts(prev => prev.filter(post => post.id !== postId));
   };
 
-  const addComment = (postId: string, commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt'>): void => {
+  const addComment = (postId: string, commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'likedBy'>): void => {
     const newComment: Comment = {
       ...commentData,
       id: Date.now().toString(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      likedBy: [],
     };
     setPosts(prev => prev.map(post =>
       post.id === postId
@@ -90,23 +66,37 @@ export const PostsProvider: React.FC<PostsProviderProps> = ({ children }) => {
   const toggleLike = (postId: string, userId: string): void => {
     setPosts(prev => prev.map(post => {
       if (post.id === postId) {
-        // Like/unlike real: só permite um like por usuário
-        const liked = post.comments.some(c => c.userId === userId && c.content === '__LIKE__');
-        if (liked) {
-          // Remove like
-          return {
-            ...post,
-            likes: Math.max(0, post.likes - 1),
-            comments: post.comments.filter(c => !(c.userId === userId && c.content === '__LIKE__')),
-          };
-        } else {
-          // Adiciona like
-          return {
-            ...post,
-            likes: post.likes + 1,
-            comments: [...post.comments, { id: Date.now().toString(), postId, userId, content: '__LIKE__', createdAt: new Date(), updatedAt: new Date() }],
-          };
-        }
+        const alreadyLiked = post.likedBy.includes(userId);
+        return {
+          ...post,
+          likedBy: alreadyLiked
+            ? post.likedBy.filter(id => id !== userId)
+            : [...post.likedBy, userId],
+          likes: alreadyLiked ? post.likes - 1 : post.likes + 1,
+        };
+      }
+      return post;
+    }));
+  };
+
+  const toggleCommentLike = (postId: string, commentId: string, userId: string): void => {
+    setPosts(prev => prev.map(post => {
+      if (post.id === postId) {
+        return {
+          ...post,
+          comments: post.comments.map(comment => {
+            if (comment.id === commentId) {
+              const alreadyLiked = comment.likedBy.includes(userId);
+              return {
+                ...comment,
+                likedBy: alreadyLiked
+                  ? comment.likedBy.filter(id => id !== userId)
+                  : [...comment.likedBy, userId],
+              };
+            }
+            return comment;
+          })
+        };
       }
       return post;
     }));
@@ -124,6 +114,7 @@ export const PostsProvider: React.FC<PostsProviderProps> = ({ children }) => {
     addComment,
     toggleLike,
     getUserPosts,
+    toggleCommentLike,
   };
 
   return (

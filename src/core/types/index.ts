@@ -5,6 +5,7 @@ export interface User {
   email: string;
   password: string; // senha em texto simples para demo
   avatar?: string;
+  cover?: string; // nova propriedade para capa
   bio?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -18,6 +19,7 @@ export interface Post {
   imageUrl: string;
   caption?: string;
   likes: number;
+  likedBy: string[]; // IDs dos usuários que curtiram
   comments: Comment[];
   createdAt: Date;
   updatedAt: Date;
@@ -31,6 +33,7 @@ export interface Comment {
   content: string;
   createdAt: Date;
   updatedAt: Date;
+  likedBy: string[]; // IDs dos usuários que curtiram o comentário
   user?: User; // Para incluir dados do usuário que comentou
 }
 
@@ -49,6 +52,8 @@ export type RootStackParamList = {
   Home: undefined;
   Profile: { userId?: string };
   Gallery: { userId?: string };
+  UserProfile: { userId: string };
+  PostDetail: { postId: string };
 };
 
 // Tipos para formulários
@@ -80,3 +85,6 @@ export interface AuthContextType {
   logout: () => void;
   loading: boolean;
 }
+
+// Corrige import para o caminho correto:
+import UserProfileScreen from '@/pages/Profile/UserProfileScreen';

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User } from '../core/types';
+import { defaultUsers } from '@/core/datadefault';
 
 interface UsersContextProps {
   users: User[];
@@ -15,7 +16,7 @@ interface UsersContextProps {
 const UsersContext = createContext<UsersContextProps | undefined>(undefined);
 
 export const UsersProvider = ({ children }: { children: ReactNode }) => {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>(defaultUsers);
 
   const getUsers = () => users;
 
