@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { AuthContextType, User, RegisterFormData } from '@/core/types';
 import { useUsers } from './UsersContext';
 
@@ -12,6 +12,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { users, createUser } = useUsers();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Sincroniza o usuário logado sempre que a lista de usuários mudar
+  useEffect(() => {
+    if (user) {
+      const updated = users.find(u => u.id === user.id);
+      if (updated) setUser(updated);
+    }
+  }, [users]);
 
   const login = async (email: string, password: string): Promise<void> => {
     setLoading(true);
@@ -63,13 +71,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
-  const value: AuthContextType = {
+  const value: AuthContextType & { setUser: typeof setUser } = {
     user,
     isAuthenticated: !!user,
     login,
     register,
     logout,
     loading,
+    setUser, // expõe setUser para uso avançado
   };
 
   return (

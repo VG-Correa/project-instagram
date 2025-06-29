@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -14,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePosts } from '@/contexts/PostsContext';
 import { useUsers } from '@/contexts/UsersContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Home'>;
@@ -69,9 +73,11 @@ const PostCard: React.FC<{ post: Post; onLike: () => void; onComment: () => void
             </Text>
           ))}
           {post.comments.length > 2 && (
-            <Text style={styles.moreComments}>
-              Ver mais {post.comments.length - 2} comentários
-            </Text>
+            <TouchableOpacity onPress={onComment}>
+              <Text style={styles.moreComments}>
+                Ver mais {post.comments.length - 2} comentários
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -81,8 +87,11 @@ const PostCard: React.FC<{ post: Post; onLike: () => void; onComment: () => void
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, logout } = useAuth();
-  const { posts, toggleLike } = usePosts();
+  const { posts, toggleLike, addPost } = usePosts();
   const { users } = useUsers();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newPostCaption, setNewPostCaption] = useState('');
+  const [newPostImage, setNewPostImage] = useState<string | null>(null);
 
   // IDs dos amigos do usuário logado
   const friendIds = user?.friends || [];
@@ -119,6 +128,38 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     navigation.navigate('PostDetail', { postId });
   };
 
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setNewPostImage(result.assets[0].uri);
+    }
+  };
+
+  const handleAddPost = () => {
+    if (!user) return;
+    if (!newPostCaption.trim()) {
+      Alert.alert('Atenção', 'Digite uma legenda para a postagem!');
+      return;
+    }
+    if (!newPostImage) {
+      Alert.alert('Atenção', 'Selecione uma imagem para a postagem!');
+      return;
+    }
+    addPost({
+      userId: user.id,
+      imageUrl: newPostImage,
+      caption: newPostCaption,
+      likedBy: [],
+    });
+    setNewPostCaption('');
+    setNewPostImage(null);
+    setModalVisible(false);
+  };
+
   const renderPost = ({ item }: { item: Post }) => {
     const postUser = users.find(u => u.id === item.userId) || { username: 'Usuário', avatar: undefined };
     const isLiked = item.likedBy ? item.likedBy.includes(user?.id || '') : false;
@@ -138,21 +179,79 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerWrapper}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Instagram Clone</Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Profile', { userId: user?.id })}
-              style={styles.headerButton}
-            >
-              <Text style={styles.headerButtonText}>👤</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleLogout} style={styles.headerButton}>
-              <Text style={styles.headerButtonText}>🚪</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Home')}
+            style={styles.headerIconButton}
+          >
+            <Text style={styles.headerIcon}>🏠</Text>
+            <Text style={styles.headerIconLabel}>Home</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Friends')}
+            style={styles.headerIconButton}
+          >
+            <Text style={styles.headerIcon}>👥</Text>
+            <Text style={styles.headerIconLabel}>Amigos</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Profile', { userId: user?.id })}
+            style={styles.headerIconButton}
+          >
+            <Text style={styles.headerIcon}>👤</Text>
+            <Text style={styles.headerIconLabel}>Perfil</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.headerIconButton}>
+            <Text style={styles.headerIcon}>🚪</Text>
+            <Text style={styles.headerIconLabel}>Sair</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setModalVisible(true)}
+            style={styles.headerIconButton}
+          >
+            <Text style={styles.headerIcon}>➕</Text>
+            <Text style={styles.headerIconLabel}>Nova</Text>
+          </TouchableOpacity>
         </View>
       </View>
+      {/* Modal de nova postagem */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Nova Postagem</Text>
+            <TouchableOpacity style={styles.imagePickerBtn} onPress={handlePickImage}>
+              <Text style={styles.imagePickerBtnText}>Escolher imagem</Text>
+            </TouchableOpacity>
+            {newPostImage && (
+              <Image
+                source={{ uri: newPostImage }}
+                style={styles.modalImage}
+              />
+            )}
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Digite uma legenda..."
+              value={newPostCaption}
+              onChangeText={setNewPostCaption}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => { setModalVisible(false); setNewPostImage(null); }}>
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmButton} onPress={handleAddPost}>
+                <Text style={styles.confirmButtonText}>Publicar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       {feedPosts.length === 0 ? (
         <View style={styles.emptyFeedContainer}>
           <Text style={styles.emptyFeedText}>Nenhuma publicação encontrada dos seus amigos.</Text>
@@ -177,32 +276,50 @@ const styles = StyleSheet.create({
   },
   headerWrapper: {
     backgroundColor: '#fff',
-    paddingTop: 30, // aumenta o padding para evitar sobreposição com notch/câmera
+    paddingTop: 30,
     paddingBottom: 2,
     borderBottomWidth: 1,
     borderBottomColor: '#dbdbdb',
     zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 3,
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 15,
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
     paddingVertical: 6,
+    position: 'relative',
+  },
+  headerTitleWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: -1,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#262626',
+    textAlign: 'center',
   },
-  headerActions: {
-    flexDirection: 'row',
+  headerIconButton: {
+    alignItems: 'center',
+    marginHorizontal: 4,
+    padding: 4,
   },
-  headerButton: {
-    marginLeft: 15,
+  headerIcon: {
+    fontSize: 22,
   },
-  headerButtonText: {
-    fontSize: 20,
+  headerIconLabel: {
+    fontSize: 11,
+    color: '#444',
+    marginTop: -2,
   },
   feed: {
     paddingBottom: 20,
@@ -270,6 +387,89 @@ const styles = StyleSheet.create({
     color: '#8e8e93',
     textAlign: 'center',
     marginTop: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#262626',
+  },
+  modalImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 20,
+    backgroundColor: '#eee',
+  },
+  imagePickerBtn: {
+    backgroundColor: '#0095f6',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  imagePickerBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#dbdbdb',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    minHeight: 60,
+    width: '100%',
+    textAlignVertical: 'top',
+    backgroundColor: '#fafafa',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    marginRight: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dbdbdb',
+  },
+  cancelButtonText: {
+    textAlign: 'center',
+    color: '#8e8e93',
+    fontSize: 16,
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: '#0095f6',
+    paddingVertical: 12,
+    marginLeft: 10,
+    borderRadius: 8,
+  },
+  confirmButtonText: {
+    textAlign: 'center',
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

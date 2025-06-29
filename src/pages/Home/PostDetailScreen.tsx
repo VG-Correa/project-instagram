@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/core/types';
@@ -111,12 +112,16 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
           </TouchableOpacity>
           <Text style={styles.commentsCount}>💬 {post.comments.length}</Text>
         </View>
-        <View style={styles.commentsList}>
-          {post.comments.length === 0 ? (
-            <Text style={styles.noComments}>Nenhum comentário ainda.</Text>
-          ) : (
-            renderCommentsTree()
-          )}
+        <View style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+            <View style={styles.commentsList}>
+              {post.comments.length === 0 ? (
+                <Text style={styles.noComments}>Nenhum comentário ainda.</Text>
+              ) : (
+                renderCommentsTree()
+              )}
+            </View>
+          </ScrollView>
         </View>
         <View style={styles.commentInputRow}>
           {replyTo && (

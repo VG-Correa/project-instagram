@@ -55,6 +55,7 @@ export type RootStackParamList = {
   Gallery: { userId?: string };
   UserProfile: { userId: string };
   PostDetail: { postId: string };
+  Friends: undefined; // Adicionada rota de amigos
 };
 
 // Tipos para formulários

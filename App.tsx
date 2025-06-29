@@ -18,6 +18,7 @@ import GalleryScreen from '@/pages/Gallery/GalleryScreen';
 import { FeedbackModal } from '@/components/common/FeedbackModal';
 import UserProfileScreen from '@/pages/Profile/UserProfileScreen';
 import PostDetailScreen from '@/pages/Home/PostDetailScreen';
+import FriendsScreen from '@/pages/Friends/FriendsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -42,6 +43,7 @@ export default function App() {
                   <Stack.Screen name="UserProfile" component={UserProfileScreen} />
                   <Stack.Screen name="Gallery" component={GalleryScreen} />
                   <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+                  <Stack.Screen name="Friends" component={FriendsScreen} />
                 </Stack.Navigator>
                 <FeedbackModal />
                 <StatusBar style="auto" />
